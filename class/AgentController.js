@@ -75,6 +75,13 @@ class AgentController {
             const { name, email, phone, password, token, code } = req.body;
             const decoded = await this.verifyToken(token);
             const { verificationCode } = decoded
+
+            // Verify that users email is not already in the database
+            const sqlRead = "SELECT email FROM agentes WHERE email = ?"
+            const [emailExists] = await pool.query(sqlRead, [email]);
+            if(emailExists.length > 0){
+                return res.status(400).json({"message": "Email Already In Use"});
+            }
         
             // check the code against user input
             if (code != verificationCode){
