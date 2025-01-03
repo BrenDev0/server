@@ -31,7 +31,7 @@ class AgentController {
         try {
             const { email } = req.body
             const code = Math.floor(1000 + Math.random() * 9000)
-            const text = `Your Verification Code: ${code} Expires In 15 Minutes`
+            const text = `Tu código de verificación: ${code} expira en 15 minutos.`
             const verificationEmail = {
             from: process.env.MAIL_USER,
             to: email,
