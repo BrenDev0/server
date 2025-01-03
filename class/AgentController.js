@@ -1,12 +1,11 @@
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
 require("dotenv").config();
-const pool = require("../db.js")
-const transporter = require("../mail.js")
+const pool = require("../config/db.js")
+const transporter = require("../config/mail.js")
 const validator = require("validator")
 
 class AgentController {
-  
     // Generate token with encoded Data and duration of token
     // Returns encoded token
     generateToken(encodedData, limit){
@@ -17,23 +16,20 @@ class AgentController {
     }
 
     // Returns decoded Token
-    verifyToken(token){
-        return new Promise((resolve, reject) => {
-            const key = process.env.TOKEN_KEY;
-            jwt.verify(token, key, (error, decoded ) => {
-                if(error) {
-                    return reject(error)
-                }
-
-                resolve(decoded)
-            })
-        })
+    async verifyToken(token) {
+        try {
+            const key = process.env.TOKEN_KEY; // Secret used to sign the JWT
+            return jwt.verify(token, key);  // Decodes the token and returns the payload
+        } catch (err) {
+            console.error('Error verifying token:', err);
+            throw new Error('Invalid token');
+        }
     }
 
     // Send verify email 
     async verifyEmail(req, res){
         try {
-            const { name, email, phone, password } = req.body
+            const { email } = req.body
             const code = Math.floor(1000 + Math.random() * 9000)
             const text = `Your Verification Code: ${code} Expires In 15 Minutes`
             const verificationEmail = {
@@ -47,10 +43,7 @@ class AgentController {
             if(!validator.isEmail(email)){
                 return res.status(400).json({"message": "Please Input a Valid Email"})
             }
-            // Check for valid Phone Number
-            if(!validator.isMobilePhone(phone, "es-MX")){
-                return res.status(400).json({"message": "Please Enter a Valid Phone Number"})
-            }
+        
             // Verify that users email is not already in the database
             const sqlRead = "SELECT email FROM agentes WHERE email = ?"
             const [emailExists] = await pool.query(sqlRead, [email]);
@@ -61,11 +54,7 @@ class AgentController {
             // Send verification code
            await transporter.sendMail(verificationEmail);
             const encodedData = {
-                name: name,
-                email: email,
-                phone: phone,
-                password: password,
-                code: code
+                verificationCode: code
             }
             
             const token = this.generateToken(encodedData, "15m")
@@ -76,23 +65,31 @@ class AgentController {
             })
         } catch (error) {
             console.log(error)
-            return res.status(500).json({"message": "Internal Error"})
+            return res.status(500).json({"message": "Your request can not be completed at this time please contact support"})
         } 
     }
 
     // Returns Token @ response.token
     async createAgent(req, res) {
         try {
-            const { token, userCode } = req.body;
+            const { name, email, phone, password, token, code } = req.body;
             const decoded = await this.verifyToken(token);
-            const { name, email, phone, password, code } = decoded
-            if (code !== userCode){
+            const { verificationCode } = decoded
+        
+            // check the code against user input
+            if (code != verificationCode){
                 return res.status(400).json({"message": "Incorrect Validation Code."})
             }
-            const sqlInsert = "INSERT INTO agentes(name, email, phone, password) VALUES(?, ?, ?, ?)";
+
+            // validate phone number
+            if(!validator.isMobilePhone(phone, "es-MX")){
+                return res.status(400).json({"message": "Please Enter a Valid Phone Number"})
+            }
+
+            const sqlInsert = "INSERT INTO agentes(desarrollador_id_desarrollador, nombre, email, password, phone) VALUES(?, ?, ?, ?, ?)";
             const hashedPassword = await bcrypt.hash(password,10);
 
-            const [results] = await pool.query(sqlInsert, [name, email, phone, hashedPassword])
+            const [results] = await pool.query(sqlInsert, [1, name, email, hashedPassword, phone])
                 
             // Generate Token
             const idToken = this.generateToken({id: results.insertId}, "8h")
@@ -105,14 +102,14 @@ class AgentController {
             
             } catch (error) {
                 console.log(error);
-                return res.status(500).json({ "message": "Internal Error" });
+                return res.status(500).json({ "message": "Your request can not be completed at this time please contact support" });
             } 
     }
 
     async login(req, res){
         try {
             const { name, email, password } = req.body
-            const sqlRead = "SELECT * FROM agentes WHERE name = ? AND email = ?"
+            const sqlRead = "SELECT * FROM agentes WHERE nombre = ? AND email = ?"
             const [agent] = await pool.query(sqlRead, [name, email]);
             // Incorrect email or password
             if(agent.length < 1){
@@ -131,18 +128,24 @@ class AgentController {
             })
         } catch (error) {
             console.log(error)
-            return res.status(500).json({"message": "Internal Error"})
+            return res.status(500).json({"message": "Your request can not be completed at this time please contact support"})
         }
     }
 
     async getAgents(req, res){
-        const sqlRead = "SELECT * FROM agentes";
-        const results = await pool.query(sqlRead)
-        return res.status(200).json({"data": results})
+        try {
+            const sqlRead = "SELECT * FROM agentes";
+            const results = await pool.query(sqlRead)
+            return res.status(200).json({"data": results})  
+        } catch (error) {
+            console.log(error)
+            return
+        }
     }
 
 
 }
+
 
 
 module.exports = AgentController

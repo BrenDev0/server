@@ -1,15 +1,16 @@
 require("dotenv").config()
 const express = require("express");
-const Agent = require("./class/Agent.js");
 const agentRoutes = require("./routes/agentRoutes.js")
 
 const app = express();
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 app.use("/agents", agentRoutes)
 
 
 const server = () => {
-    app.listen(8000, () => {
+    app.listen(process.env.SERVER_PORT, () => {
         console.log("online")
     })
 }
