@@ -1,6 +1,7 @@
 require("dotenv").config()
 const express = require("express");
 const agentRoutes = require("./routes/agentRoutes.js")
+const awsServerlessExpress = require("aws-serverless-express")
 
 const app = express();
 app.use(express.json());
@@ -9,10 +10,8 @@ app.use(express.urlencoded({ extended: true }));
 app.use("/agents", agentRoutes)
 
 
-const server = () => {
-    app.listen(process.env.SERVER_PORT, () => {
-        console.log("online")
-    })
-}
+const server = awsServerlessExpress.createServer(app)
 
-server()
+exports.handler = (event, context) => {
+    awsServerlessExpress.proxy(server, event, context)
+}
