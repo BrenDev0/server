@@ -1,4 +1,4 @@
-const mysql = require("mysql2/promise");
+const mysql = require("mysql2");
 const jwt = require("jsonwebtoken");
 const nodeMailer = require("nodemailer");
 const bcrypt = require("bcrypt");
@@ -7,6 +7,7 @@ require("dotenv").config();
 class Agent {
    constructor(){
         this.jwtKey = process.env.TOKEN_KEY
+        console.log(process.env.DB_PASSWORD)
 
         //Create connection
         this.connection = mysql.createConnection({
@@ -149,9 +150,9 @@ class Agent {
         }
     }
 
-    async getAgents(){
+    async getAgents(req, res){
         const sqlRead = "SELECT * FROM agentes";
-        const results = await this.connection.execute(sqlRead);
+        const results = this.connection.query(sqlRead)
         return res.status(200).json({"data": results})
     }
 

@@ -45,7 +45,7 @@ const login = async (req, res) => {
 const getAgents = async (req, res) => {
     console.log("get agents")
     const agent = new Agent();
-    return await agent.getAgents();
+    return await agent.getAgents(req, res);
 }
 
 
